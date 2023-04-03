@@ -1,17 +1,31 @@
+////////////////////////////////////////////////////////////////
+//  Written by Sean Jeffas
+//  sj9ry@virginia.edu
+//  Last updated March 30, 2023
+//
+//  The purpose of this script is to take full readout GEM data
+//  generated from SBS-offline and do a tracking analysis of the
+//  negative signals. It will compare the negative signal occupancy,
+//  efficiency, and distribution to positive signals to look for
+//  any correlations.
+//
+//  Usage: root neg_track_study.C
+//
+////////////////////////////////////////////////////////////////
 const int nfiber = 24;
 const int nadc = 16;
 const int nchan = 128;
 const int nlayer = 5;
 const int nruns = 4;
+int runs[nruns] = {2813,2815,2817,2820};
+int currents[nruns] = {5,15,30,45};
 
 
 void neg_track_study(){
 
   gStyle->SetOptStat(0);
 
-  Load_Run_Info("../include/SBS_runs.cfg");
-
-  TString titles[nruns] = {"5 uA on LD2", "10 uA on LD2", "12 uA on LD2", "20 uA on LD2", "34.5 uA on LD2"};
+  TString titles[nruns] = {"5 uA on LD2", "10 uA on LD2", "12 uA on LD2", "20 uA on LD2"};
 
   TString output = "../plots/neg_track_study.pdf";
 
@@ -41,45 +55,42 @@ void neg_track_study(){
 
   double x_max_neg = 0;
   double x_max_pos = 0;
+
+  TString rootdir = "/lustre19/expphy/volatile/halla/sbs/jeffas/GEN_root/Rootfiles/GEM_luminosity/";
   
-  for( int icurrent = 0; icurrent < nruns; icurrent++){
+  //Loop over all runs
+  for( int irun = 0; irun < nruns; irun++){
     
-    TString Rootfile = Form("../../Rootfiles/gmn_replayed_%g_all.root",SBS_currents[0][icurrent]);
+    TString Rootfile = Form(rootdir + "gen_replayed_%i_all.root",runs[irun]);
 
+    //This bit of code here adds all root files together to analyze the total histograms
     gSystem->Exec("rm -f " + Rootfile);
-    TString execute = "hadd " + Rootfile;
+    gSystem->Exec(Form("hadd -k -f %s %s/*%i*",Rootfile.Data(),rootdir.Data(),runs[irun]));
     
-    for(int irun = 0; irun < SBS_runs[0][icurrent].size(); irun++){
-
-      gSystem->Exec(Form("../volatile_add.sh %i 0 300",SBS_runs[0][icurrent][irun]));
-
-      execute += Form(" ../../Rootfiles/gmn_replayed_%i_all.root",SBS_runs[0][icurrent][irun]);
-      if(irun == SBS_runs[0][icurrent].size() - 1)
-	gSystem->Exec(execute);
-    }
-
     TFile *hfile = new TFile(Rootfile,"read");  
 
+    //Loop over all layers
     for( int ilayer = 0; ilayer < nlayer; ilayer++){
     
-      x_current[ilayer][icurrent] = SBS_currents[0][icurrent];
+      x_current[ilayer][irun] = currents[irun]; //Get current for this run
         
-      hADC_track_neg[ilayer][icurrent] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_ADCmaxU_neg_good",ilayer));
-      hADC_all_neg[ilayer][icurrent] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_ADCmaxU_neg_all",ilayer));
+      //Get all the histograms from the root files
+      hADC_track_neg[ilayer][irun] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_ADCmaxU_neg_good",ilayer));
+      hADC_all_neg[ilayer][irun] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_ADCmaxU_neg_all",ilayer));
       
-      hADC_track_pos[ilayer][icurrent] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_ADCmaxU_good",ilayer));
-      hADC_all_pos[ilayer][icurrent] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_ADCmaxU_all",ilayer));
+      hADC_track_pos[ilayer][irun] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_ADCmaxU_good",ilayer));
+      hADC_all_pos[ilayer][irun] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_ADCmaxU_all",ilayer));
       
-      hstrip_track_neg[ilayer][icurrent] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_stripU_neg_good",ilayer));
-      hstrip_all_neg[ilayer][icurrent] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_stripU_neg_all",ilayer));
+      hstrip_track_neg[ilayer][irun] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_stripU_neg_good",ilayer));
+      hstrip_all_neg[ilayer][irun] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_stripU_neg_all",ilayer));
       
-      hstrip_track_pos[ilayer][icurrent] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_stripU_good",ilayer));
-      hstrip_all_pos[ilayer][icurrent] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_stripU_all",ilayer));
+      hstrip_track_pos[ilayer][irun] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_stripU_good",ilayer));
+      hstrip_all_pos[ilayer][irun] = (TH1F*)hfile->Get(Form("hbb_gem_m%i_stripU_all",ilayer));
       
-      hstrip_SampMax_neg_good[ilayer][icurrent] = (TH1F*)hfile->Get("hbb_gem_m0_iSampMaxU_neg_good");
-      hstrip_SampMax_neg_all[ilayer][icurrent] = (TH1F*)hfile->Get("hbb_gem_m0_iSampMaxU_neg_all");
-      hstrip_SampMax_pos_good[ilayer][icurrent] = (TH1F*)hfile->Get("hbb_gem_m0_iSampMaxU_good");
-      hstrip_SampMax_pos_all[ilayer][icurrent] = (TH1F*)hfile->Get("hbb_gem_m0_iSampMaxU_all");
+      hstrip_SampMax_neg_good[ilayer][irun] = (TH1F*)hfile->Get("hbb_gem_m0_iSampMaxU_neg_good");
+      hstrip_SampMax_neg_all[ilayer][irun] = (TH1F*)hfile->Get("hbb_gem_m0_iSampMaxU_neg_all");
+      hstrip_SampMax_pos_good[ilayer][irun] = (TH1F*)hfile->Get("hbb_gem_m0_iSampMaxU_good");
+      hstrip_SampMax_pos_all[ilayer][irun] = (TH1F*)hfile->Get("hbb_gem_m0_iSampMaxU_all");
 
       TH1F *hshould_neg = (TH1F*)hfile->Get(Form("hdidnothit_x_bb_gem_layer%i",ilayer));
       TH1F *hdid_neg = (TH1F*)hfile->Get(Form("hneghit_x_bb_gem_layer%i",ilayer));
@@ -100,23 +111,25 @@ void neg_track_study(){
       int nAPVs = 30;
       if(ilayer == 4) nAPVs = 10*4;
 
-      x_neg_occu[ilayer][icurrent] = htemp->GetMean() / (128*nAPVs);
-      x_pos_occu[ilayer][icurrent] = hoccu_pos->ProjectionY("",0 + ilayer,1 + ilayer)->GetMean() / (128*30);
+      //Get the occupancy numbers
+      x_neg_occu[ilayer][irun] = htemp->GetMean() / (128*nAPVs);
+      x_pos_occu[ilayer][irun] = hoccu_pos->ProjectionY("",0 + ilayer,1 + ilayer)->GetMean() / (128*30);
       
-      if(x_neg_occu[ilayer][icurrent] > x_max_neg) x_max_neg = x_neg_occu[ilayer][icurrent];
-      if(x_pos_occu[ilayer][icurrent] > x_max_pos) x_max_pos = x_pos_occu[ilayer][icurrent];
+      if(x_neg_occu[ilayer][irun] > x_max_neg) x_max_neg = x_neg_occu[ilayer][irun];
+      if(x_pos_occu[ilayer][irun] > x_max_pos) x_max_pos = x_pos_occu[ilayer][irun];
 
-      y_pos_eff[ilayer][icurrent] = hdid_pos->GetEntries()/hshould_pos->GetEntries();
-      y_neg_frac[ilayer][icurrent] = hdid_neg->GetEntries()/hshould_neg->GetEntries();
-      y_pos_frac[ilayer][icurrent] = hdid_neg_good->GetEntries()/hdid_fullreadout->GetEntries();
-      y_neg_diff[ilayer][icurrent] = y_neg_frac[ilayer][icurrent] - y_pos_frac[ilayer][icurrent];
+      //Get the efficiency numbers
+      y_pos_eff[ilayer][irun] = hdid_pos->GetEntries()/hshould_pos->GetEntries();
+      y_neg_frac[ilayer][irun] = hdid_neg->GetEntries()/hshould_neg->GetEntries();
+      y_pos_frac[ilayer][irun] = hdid_neg_good->GetEntries()/hdid_fullreadout->GetEntries();
+      y_neg_diff[ilayer][irun] = y_neg_frac[ilayer][irun] - y_pos_frac[ilayer][irun];
       
       
       htrack_nstrip_miss->GetYaxis()->SetRangeUser(0.8,15);
       htrack_nstrip_hit->GetYaxis()->SetRangeUser(0.8,15);
       
-      y_track_miss[ilayer][icurrent] = htrack_nstrip_miss->ProjectionY("",0 + ilayer,1 + ilayer)->GetMean();
-      y_track_hit[ilayer][icurrent] = htrack_nstrip_hit->ProjectionY("",0 + ilayer,1 + ilayer)->GetMean();
+      y_track_miss[ilayer][irun] = htrack_nstrip_miss->ProjectionY("",0 + ilayer,1 + ilayer)->GetMean();
+      y_track_hit[ilayer][irun] = htrack_nstrip_hit->ProjectionY("",0 + ilayer,1 + ilayer)->GetMean();
       
 
       
@@ -144,42 +157,42 @@ void neg_track_study(){
   
   int icolor = 0;
 
-  for(int icurrent=0; icurrent < nruns; icurrent++){
+  for(int irun=0; irun < nruns; irun++){
     icolor++;
     if(icolor == 5 || icolor == 10) icolor ++;
 
     c1->cd(1);
-    hADC_all_neg[0][icurrent]->SetTitle("UV Layer 0 All Negative Strips");
-    hADC_all_neg[0][icurrent]->SetLineColor(icolor);
-    hADC_all_neg[0][icurrent]->Scale(1/hADC_all_neg[0][icurrent]->GetMaximum());
-    hADC_all_neg[0][icurrent]->Draw("same hist");
+    hADC_all_neg[0][irun]->SetTitle("UV Layer 0 All Negative Strips");
+    hADC_all_neg[0][irun]->SetLineColor(icolor);
+    hADC_all_neg[0][irun]->Scale(1/hADC_all_neg[0][irun]->GetMaximum());
+    hADC_all_neg[0][irun]->Draw("same hist");
     gPad->SetLogy();
 
-    legend->AddEntry(hADC_all_neg[0][icurrent],titles[icurrent]);
+    legend->AddEntry(hADC_all_neg[0][irun],titles[irun]);
     //legend->Draw("same");
 
     c1->cd(2);
-    hADC_track_neg[0][icurrent]->SetTitle("UV Layer 0 Negative Strips On Tracks");
-    hADC_track_neg[0][icurrent]->SetLineColor(icolor);
-    hADC_track_neg[0][icurrent]->Scale(1/hADC_track_neg[0][icurrent]->GetMaximum());
-    hADC_track_neg[0][icurrent]->Draw("same hist");
+    hADC_track_neg[0][irun]->SetTitle("UV Layer 0 Negative Strips On Tracks");
+    hADC_track_neg[0][irun]->SetLineColor(icolor);
+    hADC_track_neg[0][irun]->Scale(1/hADC_track_neg[0][irun]->GetMaximum());
+    hADC_track_neg[0][irun]->Draw("same hist");
     gPad->SetLogy();
     
 
     legend->Draw("same");
 
     c1->cd(3);
-    hADC_all_pos[0][icurrent]->SetTitle("UV Layer 0 All Positive Strips");
-    hADC_all_pos[0][icurrent]->SetLineColor(icolor);
-    hADC_all_pos[0][icurrent]->Scale(1/hADC_all_pos[0][icurrent]->GetMaximum());
-    hADC_all_pos[0][icurrent]->Draw("same hist");
+    hADC_all_pos[0][irun]->SetTitle("UV Layer 0 All Positive Strips");
+    hADC_all_pos[0][irun]->SetLineColor(icolor);
+    hADC_all_pos[0][irun]->Scale(1/hADC_all_pos[0][irun]->GetMaximum());
+    hADC_all_pos[0][irun]->Draw("same hist");
     gPad->SetLogy();
 
     c1->cd(4);
-    hADC_track_pos[0][icurrent]->SetTitle("UV Layer 0 Positive Strips On Tracks");
-    hADC_track_pos[0][icurrent]->SetLineColor(icolor);
-    hADC_track_pos[0][icurrent]->Scale(1/hADC_track_pos[0][icurrent]->GetMaximum());
-    hADC_track_pos[0][icurrent]->Draw("same hist");
+    hADC_track_pos[0][irun]->SetTitle("UV Layer 0 Positive Strips On Tracks");
+    hADC_track_pos[0][irun]->SetLineColor(icolor);
+    hADC_track_pos[0][irun]->Scale(1/hADC_track_pos[0][irun]->GetMaximum());
+    hADC_track_pos[0][irun]->Draw("same hist");
     gPad->SetLogy();
    
 

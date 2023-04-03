@@ -1,25 +1,22 @@
 ////////////////////////////////////////////////////////////////
 //  Written by Sean Jeffas
 //  sj9ry@virginia.edu
-//  Last updated March 23, 2023
+//  Last updated March 30, 2023
 //
 //  The purpose of this script is to take full readout GEM data
-//  generated from SBS-offline and visually display APV data.
-//  It also shows the common mode results visually for each APV.
-//  The script only needs a run number and a pedestal run number
-//  And it will prompt the user to select the APVs they want to
-//  look at.
+//  generated from SBS-offline and perform common mode analysis.
+//  It is set up to loop over some runs with different currents 
+//  And plot the CM performance.
 //
-//  Usage: root APV_visualize(#runnumber, #pedestal_run_number)
+//  Usage: root CM_method_analysis.C
 //
 ////////////////////////////////////////////////////////////////
-#include "pedestal_analysis.C"
-#include "GEM_map_decode.C"
-#include "Get_event_data.C"
+#include "../src/pedestal_analysis.C"
+#include "../src/GEM_map_decode.C"
+#include "../src/Get_event_data.C"
 
 const int nruns = 4;
 int runs[nruns] = {2813,2815,2817,2820};
-//int runs[nruns] = {2813};
 int currents[nruns] = {5,15,30,45};
 
 

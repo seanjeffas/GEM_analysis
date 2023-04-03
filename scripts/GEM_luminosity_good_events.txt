@@ -1,3 +1,5 @@
+#These numbers show the range of events where the current is at the maximum value.
+#We do not want to analyze data where the current is off or ramping up.
 run 2813
 0 50000
 50000 100000

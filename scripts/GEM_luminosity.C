@@ -1,14 +1,28 @@
+////////////////////////////////////////////////////////////////
+//  Written by Sean Jeffas
+//  sj9ry@virginia.edu
+//  Last updated March 23, 2023
+//
+//  The purpose of this script is to take specific runs from the 
+//  GEM luminosity study and print plots showing how the GEM 
+//  efficiency and gain performed
+//
+//  Usage: root GEM_luminosity
+//
+////////////////////////////////////////////////////////////////
+
 
 const int nruns = 4;
 const int nlayers = 5;
 const int nmodules = 8;
 
 double currents[nruns] = {5,15,30,45};
-int runs_nocorr[nruns] = {2813,2815,2817,2820};
-int runs_withcorr[nruns] = {2814,2816,2818,2821};
+int runs_nocorr[nruns] = {2813,2815,2817,2820};  //Layer 0 has no HV corrections
+int runs_withcorr[nruns] = {2814,2816,2818,2821};//Layer 0 has HV corrections 
 int nstrips[nlayers] = {3840,3840,3840,3840,5120};
 
 
+// This gets the efficiency from the root tree
 double GEM_layer_efficiency(TFile *file, int ilayer){
 
   TH1D *hshould = (TH1D*)file->Get(Form("hshouldhit_xy_bb_gem_layer%i",ilayer));
@@ -18,7 +32,7 @@ double GEM_layer_efficiency(TFile *file, int ilayer){
 
 }
 
-
+// This gets the MPV from a landau fit
 double landau_fit(TH1D *ADC){
 
   TF1 *landau = new TF1("land","landau",0,500);
@@ -28,6 +42,7 @@ double landau_fit(TH1D *ADC){
   return landau->GetParameter(1);
 }
 
+//This function plots the ADC spectra for all modules
 void make_ADC_plots(int imod, TCanvas *c,TH1D *h_adc[nmodules][nruns]){
 
   TLegend *legend2 = new TLegend(0.40,0.60,0.80,0.83);
@@ -35,11 +50,13 @@ void make_ADC_plots(int imod, TCanvas *c,TH1D *h_adc[nmodules][nruns]){
   
   int icolor = 0;
  
+  //loop over all runs
   for(int irun = 0; irun < nruns; irun++){
 
     icolor++;
     if(icolor == 5) icolor++; //no yellow
     
+    //Normalize the scale
     h_adc[imod][irun]->Scale(1/h_adc[imod][irun]->GetEntries());
     h_adc[imod][irun]->GetYaxis()->SetRangeUser(0.0001,0.1);
 
@@ -48,8 +65,8 @@ void make_ADC_plots(int imod, TCanvas *c,TH1D *h_adc[nmodules][nruns]){
     if(irun == 0) h_adc[imod][irun]->Draw("hist");
     else h_adc[imod][irun]->Draw("same hist");
 
-    double MPV = landau_fit(h_adc[imod][irun]);
- 
+    //Write the MPV on the plot
+    double MPV = landau_fit(h_adc[imod][irun]); 
     legend2->AddEntry(h_adc[imod][irun],Form("%g #muA, MPV = %g",currents[irun],MPV),"l");
 
   }
@@ -59,6 +76,7 @@ void make_ADC_plots(int imod, TCanvas *c,TH1D *h_adc[nmodules][nruns]){
 
 }
 
+//This is the main function
 void GEM_luminosity(){
 
   gStyle->SetOptStat(0);
@@ -67,101 +85,36 @@ void GEM_luminosity(){
 
   TH2D *h2_CM[nruns];
   TH1D *h_adc[nmodules][nruns];
-  double GEM_eff[nlayers+1][nruns];
+  double GEM_eff[nlayers+1][nruns];  //Add the HV corrected runs as an "extra layer"
   double GEM_occu[nlayers][nruns];
   double GEM_occu_err[nlayers][nruns];
 
+  //Loop over all runs
   for(int irun = 0; irun < nruns; irun++){
-    
-    //cout<<runs_withcorr[irun]<<endl;
-    //cout<<runs_nocorr[irun]<<endl;
-    //TChain *TScal = new TChain("TSsbs");
-    //TChain *T = new TChain("T");
-    
+        
+    //Read in the root files
     TFile *file = new TFile(Rootfiles + Form("gen_replayed_%i_all.root",runs_nocorr[irun]),"read");
-    
     TFile *file_corr = new TFile(Rootfiles + Form("gen_replayed_%i_all.root",runs_withcorr[irun]),"read");
    
     h2_CM[irun] = (TH2D*)file->Get("hcommonmodeU_diff_bb_gem_m0");
     TH2D *h2_occu = (TH2D*)file->Get("hbb_gem_NstripsU_layer");
     
+    //Loop over all modules 
     for(int imod = 0; imod < nmodules; imod++){
       h_adc[imod][irun] = (TH1D*)file->Get(Form("hbb_gem_m%i_ADCmaxU_good",imod));
-      //h_adc[imod][irun]->SetName(Form("run_%i_mod_%i",runs_nocorr[irun],imod));
     }
     
-
+    //Loop over all layers ad get efficiency and occupancy numbers
     for(int ilayer = 0; ilayer < nlayers; ilayer++){
       GEM_eff[ilayer][irun] = GEM_layer_efficiency(file,ilayer);
       GEM_occu[ilayer][irun] = h2_occu->ProjectionY("",ilayer+1,ilayer+1)->GetMean()/nstrips[ilayer];
       GEM_occu_err[ilayer][irun] = h2_occu->ProjectionY("",ilayer+1,ilayer+1)->GetRMS()/nstrips[ilayer];
     }
     
+    //Add the HV corrections as another layer to the plot
     GEM_eff[5][irun] = GEM_layer_efficiency(file_corr,0);
 
 
-    /*
-    TTree *TScal = (TTree*)file->Get("TSsbs");
-    TTree *T = (TTree*)file->Get("T");
-    //TScal->Add(Rootfiles + Form("*%i*",runs_nocorr[irun]));
-    //T->Add(Rootfiles + Form("*%i*",runs_nocorr[irun]));
-
-    //TScal->Add(Rootfiles + Form("*%i*",runs_withcorr[irun]));
-    //T->Add(Rootfiles + Form("*%i*",runs_withcorr[irun]));
-
-    T->SetBranchStatus("*",0);    
-    TScal->SetBranchStatus("*",0);    
-
-    double evnum; setrootvar::setbranch(T,"g","evnum",&evnum);
-    double evnum_scaler; setrootvar::setbranch(TScal,"evNumber","",&evnum_scaler);
-    double current_scaler; setrootvar::setbranch(TScal,"sbs.bcm.unew","current",&current_scaler);
-   
-    int nevent = 0;
-    int currenttreenum = 0;
-    int ntotal = 0;
-  
-    int nevent_scaler = 0;
-    int event_switch = 0;
-    double beam_current = 0;
-    bool beam_ramp = true;
-    
-    while(T->GetEntry(nevent++)){
-      
-      //if(nevent%100000 == 0) cout<<nevent<<endl;
-    
-      
-      if(nevent_scaler == 0){
-	TScal->GetEntry(nevent_scaler++);
-	beam_current = current_scaler;
-	TScal->GetEntry(nevent_scaler++);
-	event_switch = evnum_scaler;
-      }
-
-      if(evnum == event_switch){
-	beam_current = current_scaler;
-	TScal->GetEntry(nevent_scaler++);
-	event_switch = evnum_scaler;
-      }
-
-      if(nevent%10000==0) cout<<evnum<<" "<<beam_current<<endl;
-
-      
-      if(beam_current > currents[irun] - 1){
-	if(beam_ramp) cout<<"beam good "<<beam_current<<" "<<evnum<<endl;
-	beam_ramp = false;
-      }
-      else if(beam_current < currents[irun] - 1){
-	if(!beam_ramp) cout<<"beam bad "<<beam_current<<" "<<evnum<<endl;
-	beam_ramp = true;
-      }
-      
-
-      if(beam_current > currents[irun] - 1) ntotal++;
-  
-    }
-    
-    cout<<runs_withcorr[irun]<<" "<<ntotal<<" "<<T->GetEntries()<<endl;
-    */
   }
   
   
@@ -199,6 +152,7 @@ void GEM_luminosity(){
 
   }
 
+ 
   c1->cd();
   geff[5] = new TGraph(nruns,currents,GEM_eff[5]);
   geff[5]->SetMarkerStyle(8);

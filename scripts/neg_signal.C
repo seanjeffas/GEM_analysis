@@ -1,11 +1,24 @@
-#include "pedestal_analysis.C"
-#include "GEM_map_decode.C"
-#include "Get_event_data.C"
+////////////////////////////////////////////////////////////////
+//  Written by Sean Jeffas
+//  sj9ry@virginia.edu
+//  Last updated March 23, 2023
+//
+//  The purpose of this script is to take full readout GEM data
+//  generated from SBS-offline and analyze the negative signals.
+//  Specifically it plots the ADC distributions for each of the 
+//  runs in question
+//
+//  Usage: root neg_signal.C
+//
+////////////////////////////////////////////////////////////////
 
-//const int nruns = 4;
-//int runs[nruns] = {2813,2815,2817,2820};
-//int runs[nruns] = {2813};
-//int currents[nruns] = {5,15,30,45};
+#include "../src/pedestal_analysis.C"
+#include "../src/GEM_map_decode.C"
+#include "../src/Get_event_data.C"
+
+const int nruns = 4;
+int runs[nruns] = {2813,2815,2817,2820};
+int currents[nruns] = {5,15,30,45};
 TString run_title[nruns] = {"5","15","30","45"};
 
 TString name_map[nmodules] = {"UV layer 0", "UV layer 1", "UV layer 2", "UV layer 3", "XY module 0", "XY module 1", "XY module 2", "XY module 3"}; 
