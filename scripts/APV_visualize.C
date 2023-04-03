@@ -13,9 +13,9 @@
 //  Usage: root APV_visualize(#runnumber, #pedestal_run_number)
 //
 ////////////////////////////////////////////////////////////////
-#include "pedestal_analysis.C"
-#include "GEM_map_decode.C"
-#include "Get_event_data.C"
+#include "../src/pedestal_analysis.C"
+#include "../src/GEM_map_decode.C"
+#include "../src/Get_event_data.C"
 
 
 
