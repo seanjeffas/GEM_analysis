@@ -52,12 +52,12 @@ void APV_visualize(int runnumber = 2820,int ped_run_number = 2360){
   int ipage = 0;
 
   // Varius root files and database files
-  TString rootfile = Form("/volatile/halla/sbs/jeffas/GEN_root/Rootfiles/e1209016_replayed_%i_stream0_2_seg0_0_firstevent0_nevent5000*.root",runnumber);
+  TString rootfile = Form("/volatile/halla/sbs/jeffas/GEN_root/Rootfiles/GEM_luminosity/full_readout/e1209016_replayed_%i_stream0_2_seg0_0_firstevent0_nevent5000*.root",runnumber);
   TString pedfile = Form("/w/halla-scshelf2102/sbs/jeffas/SBS_OFFLINE/SBS-replay/DB/gemped/daq_ped_bb_gem_run%i.dat",ped_run_number);
   TString cmfile = Form("/w/halla-scshelf2102/sbs/jeffas/SBS_OFFLINE/SBS-replay/DB/gemped/db_cmr_bb_gem_run%i.dat",ped_run_number);
 
   //Get our GEM map and APV map and load pedestals
-  GEM_map_decode("gem_map_BigBite.txt");
+  GEM_map_decode("../src/gem_map_BigBite.txt");
   InitAPVMAP();
   LoadPedestals(pedfile);
   LoadCM(cmfile);
@@ -103,6 +103,7 @@ void APV_visualize(int runnumber = 2820,int ped_run_number = 2360){
 	APV_info thisAPV = APV_data[lookmod][lookaxis][lookAPV];
 
 	//Loop over all time samples
+	
 	for(int isamp = 0; isamp < nsamples; isamp++){
 
 	  //Calculat the sorting CM and plot it
@@ -120,7 +121,7 @@ void APV_visualize(int runnumber = 2820,int ped_run_number = 2360){
 	  l_Histogramming[isamp] = new TLine(128*isamp, CM_histogramming, 128*(isamp+1), CM_histogramming);
 	  l_Histogramming[isamp]->SetLineColor(kBlue);
 	}
-
+	
 	TLegend *leg = new TLegend(0.65,0.7,0.9,0.9);
       
 	c->cd(iAPV + 1);

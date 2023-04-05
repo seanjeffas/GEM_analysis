@@ -3,6 +3,10 @@
 
 
 const int nmodules = 8;
+const int nfiber = 24;
+const int nadc = 16;
+const int nchan = 128;
+const int nsamples = 6;
 
 //index 0 is x/u and 1 is y/v
 const int nAPV[nmodules][2] = {
@@ -24,7 +28,6 @@ int nstrips[nmodules];
 int ndata[nmodules];
 double strip_num[nmodules][maxstrips], IsU[nmodules][maxstrips], ADC[nmodules][maxdata];
 double mpd[nmodules][maxstrips], adc_id[nmodules][maxstrips];
-
 
 TChain *C;
 TH1F *hAPV[nmodules][2][30];

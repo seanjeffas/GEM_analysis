@@ -15,15 +15,17 @@
 #include "../src/GEM_map_decode.C"
 #include "../src/Get_event_data.C"
 
-const int nruns = 4;
-int runs[nruns] = {2813,2815,2817,2820};
-int currents[nruns] = {5,15,30,45};
+const int nruns = 1;
+//int runs[nruns] = {2813,2815,2817,2820};
+//int currents[nruns] = {5,15,30,45};
 
+int runs[nruns] = {2820};
+int currents[nruns] = {45};
 
 
 void process_run(int irun,TH2F *hCM_Danning[][2],TH2F *hCM_Histo[][2]){
 
-  TString rootfile = Form("/volatile/halla/sbs/jeffas/GEN_root/Rootfiles/e1209016_replayed_%i_*.root",runs[irun]);
+  TString rootfile = Form("/volatile/halla/sbs/jeffas/GEN_root/Rootfiles/GEM_luminosity/full_readout/e1209016_replayed_%i_*.root",runs[irun]);
 
   tree_init(rootfile);
 
@@ -78,7 +80,7 @@ void CM_method_analysis(){
   TString cmfile = Form("/w/halla-scshelf2102/sbs/jeffas/SBS_OFFLINE/SBS-replay/DB/gemped/daq_cmr_bb_gem_run%i.dat",ped_run_number);
 
   //Get our GEM map and APV map and load pedestals
-  GEM_map_decode("gem_map_BigBite.txt");
+  GEM_map_decode("../src/gem_map_BigBite.txt");
   InitAPVMAP();
   LoadPedestals(pedfile);
   LoadCM(cmfile);

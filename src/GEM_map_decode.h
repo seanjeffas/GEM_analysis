@@ -72,6 +72,7 @@ struct APV_info{
   int mpd;
   int adc_id;
   int flip;
+  int module;
   TH1F *hAPV;
 
 };

@@ -41,6 +41,7 @@ void LoadPedestals( TString pedfilename ){
 	apv_addr.mpd = mpd;
 	apv_addr.adc_id = adc_ch;
 	APV_data = APV.find(apv_addr)->second;
+	
       } else {
 	//Otherwise the lines should tell us the APV channel mean and rms
 	int apvchan;
@@ -49,16 +50,14 @@ void LoadPedestals( TString pedfilename ){
 
 	//Convert apvchan to strip chan
 	//APVMAP must be initialized for this to work
-	
 	if(APV_data.flip == 1){
-	  PedMean[mpd][adc_ch][128 - APVMAP[apvchan]] = mean;
-	  PedRMS[mpd][adc_ch][128 - APVMAP[apvchan]] = rms;
+	  PedMean[mpd][adc_ch][127 - APVMAP[APV_data.module][apvchan]] = mean;
+	  PedRMS[mpd][adc_ch][127 - APVMAP[APV_data.module][apvchan]] = rms;
 	}
 	else{
-	  PedMean[mpd][adc_ch][APVMAP[apvchan]] = mean;
-	  PedRMS[mpd][adc_ch][APVMAP[apvchan]] = rms;
+	  PedMean[mpd][adc_ch][APVMAP[APV_data.module][apvchan]] = mean;
+	  PedRMS[mpd][adc_ch][APVMAP[APV_data.module][apvchan]] = rms;
 	}
-	
 
       }
     }
@@ -115,13 +114,17 @@ void LoadCM( TString CMfilename ){
 //This is how the APV internal channels to strips
 void InitAPVMAP(){
   
-  for( UInt_t i=0; i<128; i++ ){
-    Int_t strip1 = 32*(i%4) + 8*(i/4) - 31*(i/16);
-    Int_t strip2 = strip1 + 1 + strip1 % 4 - 5 * ( ( strip1/4 ) % 2 );
-    Int_t strip3 = ( strip2 % 2 == 0 ) ? strip2/2 + 32 : ( (strip2<64) ? (63 - strip2)/2 : 127 + (65-strip2)/2 ); 
-    APVMAP[i] = strip3;
+  for(int imod = 0; imod < nmodules; imod++){
+    for( UInt_t i=0; i<128; i++ ){
+      Int_t strip1 = 32*(i%4) + 8*(i/4) - 31*(i/16);
+      Int_t strip2 = strip1 + 1 + strip1 % 4 - 5 * ( ( strip1/4 ) % 2 );
+      Int_t strip3 = ( strip2 % 2 == 0 ) ? strip2/2 + 32 : ( (strip2<64) ? (63 - strip2)/2 : 127 + (65-strip2)/2 );
+      if(imod > 3) //This should not be hard coded. Fix this later
+	APVMAP[imod][i] = strip2;
+      else 
+	APVMAP[imod][i] = strip3;
+    }
   }
-
 }
 
 // Calculate the common mode using the sorting method, here is the outline of the method:
@@ -168,73 +171,49 @@ double Danning_CM_offline(APV_info APV_data, int isamp){
   int mpd = APV_data.mpd;
   int adc_ch = APV_data.adc_id;
 
-  //These are read from the pedestal database
-  double CM_mean_offline = CMmean[mpd][adc_ch];
-  double CM_rms_offline = CMrms[mpd][adc_ch];
+  double cm_mean = CMmean[mpd][adc_ch];
+  double cm_rms = CMrms[mpd][adc_ch];
+    
   
   
-  if( fNeventsRollingAverage_by_APV[mpd][adc_ch] >= std::min(100, nsamples*fNeventsCommonModeLookBack ) ){
-    CM_mean_offline = fCommonModeRollingAverage_by_APV[mpd][adc_ch];
-    CM_rms_offline = fCommonModeRollingRMS_by_APV[mpd][adc_ch];
+  if( fNeventsRollingAverage_by_APV[mpd][adc_ch] >= std::min(100, nsamples*fNeventsCommonModeLookBack ) && enable_rolling_avg){
+    cm_mean = fCommonModeRollingAverage_by_APV[mpd][adc_ch];
+    cm_rms = fCommonModeRollingRMS_by_APV[mpd][adc_ch];
   }
   
-
-  //Get the starting cut limits
-  double cm_min = CM_mean_offline - fZeroSuppressRMS*CM_rms_offline;
-  double cm_max = CM_mean_offline + fZeroSuppressRMS*CM_rms_offline;
-  
+      
   double cm_temp = 0.0;
-  int nstrips_final;    //These are the number of strips passing the cuts
-  
-  //Loop over the number of times we are averaging. Usually set to 3
-  for( int iter=0; iter<fCommonModeNumIterations; iter++ ){
-    int nstripsinrange=0;
-    double sumADCinrange=0.0;
-  
-    for( int istrip=0; istrip<nchan; istrip++ ){
-      //Get strip informtion from the histogram
-      double ADCtemp =  hAPV->GetBinContent(istrip + 129*isamp);
-      //double ADCtemp =  strip_ADC[istrip][isamp];
-      
-      
 
-      //Get the pedestal rms for this strip
-      double rmstemp = PedRMS[mpd][adc_ch][istrip];      
-      
-      /*
-      if(flag == 1){
-	double strip_sum = 0;
-	for(int itsamp=0; itsamp < 6; itsamp++)
-	  strip_sum += ADCtemp - CM_Danning_calc[adc_ch][itsamp];
-	if(strip_sum/nsamples < 3*rmstemp) continue;
-      }
-      */
+    
+  for( int iter=0; iter<3; iter++ ){
 
-      double mintemp = cm_min;
-      double maxtemp = cm_max;
+    double cm_min = cm_mean - fCommonModeRange_nsigma*cm_rms;
+    double cm_max = cm_mean + fCommonModeRange_nsigma*cm_rms;
+    double sumADCinrange = 0.0;
+    int n_keep = 0;
+
       
-      //If we are on the first iteration use the CM database values. Otherwise use the pedestal rms for each individual strip
-      if( iter > 0 ) {
-	maxtemp = cm_temp + fZeroSuppressRMS*rmstemp*fRMS_ConversionFactor; 
-	//mintemp = 0.0;
-	mintemp = cm_temp - fZeroSuppressRMS*rmstemp*fRMS_ConversionFactor;
+    for( int ihit=0; ihit<128; ihit++ ){
+	
+      double ADCtemp = hAPV->GetBinContent(ihit + 129*isamp);
+      double rmstemp = PedMean[mpd][adc_ch][ihit];
+	
+      if(iter != 0){
+	cm_min = cm_temp - fCommonModeDanningMethod_NsigmaCut*2.5*rmstemp;
+	cm_max = cm_temp + fCommonModeDanningMethod_NsigmaCut*2.5*rmstemp;
       }
-      
-      //Cut all strips outside the limits and take the average of the result
-      if( ADCtemp >= mintemp && ADCtemp <= maxtemp ){
-	nstripsinrange++;
+
+      if( ADCtemp >= cm_min && ADCtemp <= cm_max ){
+	n_keep++;
 	sumADCinrange += ADCtemp;
+
       }
     }
-    if( nstripsinrange >= 20 ){ 
-      cm_temp = sumADCinrange/double(nstripsinrange);
-    } else if( iter==0 ){ //not enough strips on FIRST iteration, use mean from sorting-method:
-      
-      return Sorting_CM( hAPV, isamp);
-    }
-    nstrips_final = nstripsinrange;
-  } //loop over iterations for "Danning method" CM calculation
-  
+   
+    cm_temp = sumADCinrange / n_keep;
+  }
+   
+    
   return cm_temp;
 }
 
@@ -251,7 +230,7 @@ double Histogramming_CM(APV_info APV_data, int isamp){
   double cm_rms = CMrms[mpd][adc_ch];
   
   
-  if( fNeventsRollingAverage_by_APV[mpd][adc_ch] >= std::min(100, nsamples*fNeventsCommonModeLookBack ) ){
+  if( fNeventsRollingAverage_by_APV[mpd][adc_ch] >= std::min(100, nsamples*fNeventsCommonModeLookBack ) && enable_rolling_avg){
     cm_mean = fCommonModeRollingAverage_by_APV[mpd][adc_ch];
     cm_rms = fCommonModeRollingRMS_by_APV[mpd][adc_ch];
   }
@@ -264,7 +243,8 @@ double Histogramming_CM(APV_info APV_data, int isamp){
   //this will actually include all ADCs within +/- (ScanRange + BinWidth) sigma of the mean since range is bin center +/- 1*RMS.
   double scan_min = cm_mean - fCommonModeScanRange_Nsigma*cm_rms; 
   double scan_max = cm_mean + fCommonModeScanRange_Nsigma*cm_rms;
-     
+  
+
   int nbins= int( (scan_max - scan_min)/stepsize ); //Default = 8 * RMS / (rms/5) = 40 bins.
   
   //NOTE: The largest number of bins that could contain any given sample is binwidth/stepsize = 20 with default settings:

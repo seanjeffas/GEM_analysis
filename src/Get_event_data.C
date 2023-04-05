@@ -19,7 +19,9 @@ void Get_event_data(){
       int istrip = (int)strip_num[imod][index] % 128;
 
       // Subtract the pedestal offset from the signal
+      //double adc_signal = ADC[imod][idata] - PedMean[(int)mpd[imod][index]][(int)adc_id[imod][index]][istrip];
       double adc_signal = ADC[imod][idata] - PedMean[(int)mpd[imod][index]][(int)adc_id[imod][index]][istrip];
+
 	
       //Set the histogram bin content to the ADC value
       //We need to use one bin to divide the time samples so they are divided by 129 instead of 128 as seen below

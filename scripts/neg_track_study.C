@@ -56,16 +56,12 @@ void neg_track_study(){
   double x_max_neg = 0;
   double x_max_pos = 0;
 
-  TString rootdir = "/lustre19/expphy/volatile/halla/sbs/jeffas/GEN_root/Rootfiles/GEM_luminosity/";
+  TString rootdir = "/lustre19/expphy/volatile/halla/sbs/jeffas/GEN_root/Rootfiles/GEM_luminosity/zero_suppressed/";
   
   //Loop over all runs
   for( int irun = 0; irun < nruns; irun++){
     
     TString Rootfile = Form(rootdir + "gen_replayed_%i_all.root",runs[irun]);
-
-    //This bit of code here adds all root files together to analyze the total histograms
-    gSystem->Exec("rm -f " + Rootfile);
-    gSystem->Exec(Form("hadd -k -f %s %s/*%i*",Rootfile.Data(),rootdir.Data(),runs[irun]));
     
     TFile *hfile = new TFile(Rootfile,"read");  
 
@@ -135,8 +131,8 @@ void neg_track_study(){
       
     }
 
-
- }
+    
+  }
 
   TCanvas *c0 = new TCanvas("c0","",1600,600);
   c0->Divide(2,1);

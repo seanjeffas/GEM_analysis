@@ -3,7 +3,7 @@
 
 
 void GEM_map_decode(TString filename){
-
+ 
   ifstream infile(filename.Data());
 
   string line;
@@ -32,9 +32,9 @@ void GEM_map_decode(TString filename){
     apv_addr.adc_id = values[5];
 
     APV_info temp_APV;
+    temp_APV.module = values[1] + values[10]; //Layer + gem position
     temp_APV.flip = values[8];
    
-    
     APV.insert({apv_addr,temp_APV});
   }
 
