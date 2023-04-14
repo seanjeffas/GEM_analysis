@@ -25,7 +25,7 @@ void neg_track_study(){
 
   gStyle->SetOptStat(0);
 
-  TString titles[nruns] = {"5 uA on LD2", "10 uA on LD2", "12 uA on LD2", "20 uA on LD2"};
+  TString titles[nruns] = {"5 uA", "15 uA", "30 uA", "45 uA"};
 
   TString output = "../plots/neg_track_study.pdf";
 
