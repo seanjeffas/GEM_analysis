@@ -165,7 +165,7 @@ double Sorting_CM(TH1F *hAPV, int isamp){
 // 4. Take the new average and cut all strips outside of new_average +/- n*ped_rms. Here ped_rms is the pedestal rms for that partcular strip in question
 // 5. Repeat strip 4 again with the new average. Overall the averaging is done 3 times, but the number of iterations is user defined.
 // The histogram input has all the APV signal data. The mpd and adc_ch input is used to find which CM_mean and CM_sigma to start with
-double Danning_CM_offline(APV_info APV_data, int isamp){
+double Danning_CM_offline(APV_info APV_data, int isamp, int nsigma = 0){
 
   TH1F *hAPV = APV_data.hAPV;
   int mpd = APV_data.mpd;
@@ -173,30 +173,29 @@ double Danning_CM_offline(APV_info APV_data, int isamp){
 
   double cm_mean = CMmean[mpd][adc_ch];
   double cm_rms = CMrms[mpd][adc_ch];
-    
-  
-  
-  if( fNeventsRollingAverage_by_APV[mpd][adc_ch] >= std::min(100, nsamples*fNeventsCommonModeLookBack ) && enable_rolling_avg){
+
+  int fNsigma = fCommonModeRange_nsigma;
+  if(nsigma != 0) fNsigma = nsigma;
+
+  if( fNeventsRollingAverage_by_APV[mpd][adc_ch] >= std::min(100, nsamples*fNeventsCommonModeLookBack ) && enable_rolling_avg_danning){
     cm_mean = fCommonModeRollingAverage_by_APV[mpd][adc_ch];
     cm_rms = fCommonModeRollingRMS_by_APV[mpd][adc_ch];
   }
   
-      
   double cm_temp = 0.0;
+  int n_keep_final = 0;
 
-    
   for( int iter=0; iter<3; iter++ ){
 
-    double cm_min = cm_mean - fCommonModeRange_nsigma*cm_rms;
-    double cm_max = cm_mean + fCommonModeRange_nsigma*cm_rms;
+    double cm_min = cm_mean - fNsigma*cm_rms;
+    double cm_max = cm_mean + fNsigma*cm_rms;
     double sumADCinrange = 0.0;
     int n_keep = 0;
-
       
     for( int ihit=0; ihit<128; ihit++ ){
 	
       double ADCtemp = hAPV->GetBinContent(ihit + 129*isamp);
-      double rmstemp = PedMean[mpd][adc_ch][ihit];
+      double rmstemp = PedRMS[mpd][adc_ch][ihit];
 	
       if(iter != 0){
 	cm_min = cm_temp - fCommonModeDanningMethod_NsigmaCut*2.5*rmstemp;
@@ -211,16 +210,19 @@ double Danning_CM_offline(APV_info APV_data, int isamp){
     }
    
     cm_temp = sumADCinrange / n_keep;
+    n_keep_final = n_keep;
   }
-   
-    
-  return cm_temp;
+
+  if(n_keep_final == 0)
+    return Sorting_CM( hAPV, isamp);
+  else
+    return cm_temp;
 }
 
 
 
 //Add description for this method later. It is complicated
-double Histogramming_CM(APV_info APV_data, int isamp){
+double Histogramming_CM(APV_info APV_data, int isamp, int use_rolling_avg = 1, int nsigma = 0, double setstepsize = 0, double setbinwidth = 0){
  
   TH1F *hAPV = APV_data.hAPV;
   int mpd = APV_data.mpd;
@@ -228,23 +230,37 @@ double Histogramming_CM(APV_info APV_data, int isamp){
 
   double cm_mean = CMmean[mpd][adc_ch];
   double cm_rms = CMrms[mpd][adc_ch];
+
+  int fNsigma = fCommonModeScanRange_Nsigma;
+  if(nsigma != 0) fNsigma = nsigma;
   
-  
-  if( fNeventsRollingAverage_by_APV[mpd][adc_ch] >= std::min(100, nsamples*fNeventsCommonModeLookBack ) && enable_rolling_avg){
+  if( fNeventsRollingAverage_by_APV[mpd][adc_ch] >= std::min(100, nsamples*fNeventsCommonModeLookBack ) && enable_rolling_avg_histo && use_rolling_avg){
     cm_mean = fCommonModeRollingAverage_by_APV[mpd][adc_ch];
     cm_rms = fCommonModeRollingRMS_by_APV[mpd][adc_ch];
   }
-  
-  
+
   //bin width/stepsize = 8 with these settings:
   double stepsize = cm_rms*fCommonModeStepSize_Nsigma; //Default is 0.2 = rms/5
   double binwidth = cm_rms*fCommonModeBinWidth_Nsigma; //Default is +/- 2 sigma, bin width / step size = 20 with these settings
 
   //this will actually include all ADCs within +/- (ScanRange + BinWidth) sigma of the mean since range is bin center +/- 1*RMS.
-  double scan_min = cm_mean - fCommonModeScanRange_Nsigma*cm_rms; 
-  double scan_max = cm_mean + fCommonModeScanRange_Nsigma*cm_rms;
+  double scan_min = cm_mean - fNsigma*cm_rms; 
+  double scan_max = cm_mean + fNsigma*cm_rms;
   
+  if(setstepsize != 0)
+    stepsize = setstepsize;
 
+  if(setbinwidth != 0)
+    binwidth = setbinwidth;
+
+  
+  /*
+  if(nsigma == 0 && use_rolling_avg == 1 && APV_data.iAPV == 2 && isamp == 0)
+    cout<<"correct "<<scan_min<<" "<<scan_max<<" "<<stepsize<<" "<<binwidth<<endl;
+
+  if(nsigma != 0 && APV_data.iAPV == 2 && isamp == 0)
+    cout<<"online "<<scan_min<<" "<<scan_max<<" "<<stepsize<<" "<<binwidth<<endl;
+  */
   int nbins= int( (scan_max - scan_min)/stepsize ); //Default = 8 * RMS / (rms/5) = 40 bins.
   
   //NOTE: The largest number of bins that could contain any given sample is binwidth/stepsize = 20 with default settings:
@@ -297,8 +313,20 @@ double Histogramming_CM(APV_info APV_data, int isamp){
     }
       
   }
-
-
+  /*
+  if(nsigma != 0 && APV_data.iAPV == 1 && isamp == 0) {
+    for(int ibin=0; ibin < nbins;ibin++){
+      cout<<"Online: "<<binADCsum[ibin]/double(bincounts[ibin])<<" "<<bincounts[ibin]<<endl;
+    }      
+    cout<<"Online result: "<<binADCsum[ibinmax]/double(bincounts[ibinmax])<<endl;
+  }
+  if(nsigma == 0 && APV_data.iAPV == 1 && isamp == 0 && use_rolling_avg == 1) {
+    for(int ibin=0; ibin < nbins;ibin++){
+      cout<<"Offline: "<<binADCsum[ibin]/double(bincounts[ibin])<<" "<<bincounts[ibin]<<endl;
+    }  
+    cout<<"Offline result: "<<binADCsum[ibinmax]/double(bincounts[ibinmax])<<endl; 
+  }
+  */
   if( ibinmax >= 0 && maxcounts >= fCommonModeMinStripsInRange ){
     return binADCsum[ibinmax]/double(bincounts[ibinmax]);
   } else { //Fall back on sorting method:
@@ -344,7 +372,6 @@ void UpdateRollingCommonModeAverage( APV_info APV_data, double CM_sample ){
 
       fCommonModeRollingAverage_by_APV[mpd][iapv] = newavg;
       fCommonModeRollingRMS_by_APV[mpd][iapv] = newrms;
-
 
     }
 

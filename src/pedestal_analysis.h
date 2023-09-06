@@ -28,7 +28,8 @@ double fCommonModeScanRange_Nsigma = 4.0; //Scan window +/- 4 sigma
 double fCommonModeStepSize_Nsigma = 0.2; //sigma/5 for step size:
 int fCommonModeMinStripsInRange = 10;
 
-int enable_rolling_avg = 0; //1/0 for yes/no
+int enable_rolling_avg_danning = 0; //1/0 for yes/no
+int enable_rolling_avg_histo = 1; //1/0 for yes/no
 int fNeventsRollingAverage_by_APV[nfiber][nadc];
 deque<double> fCommonModeResultContainer_by_APV[nfiber][nadc];
 double fCommonModeRollingAverage_by_APV[nfiber][nadc];
@@ -36,8 +37,8 @@ double fCommonModeRollingRMS_by_APV[nfiber][nadc];
 const int fNeventsCommonModeLookBack = 100;
 
 double Sorting_CM(TH1F *hAPV, int isamp);
-double Danning_CM_offline(APV_info APV_data, int isamp);
-double Histogramming_CM(APV_info APV_data, int isamp);
-void UpdateRollingCommonModeAverage( APV_info APV_data, double CM_sample );
+double Danning_CM_offline(APV_info APV_data, int isamp, int nsigma);
+double Histogramming_CM(APV_info APV_data, int isamp, int use_rolling_avg, int nsigma, double setstepsize, double setbinwidth);
+void UpdateRollingCommonModeAverage( APV_info APV_data, double CM_sample);
 
 #endif

@@ -30,6 +30,7 @@ void Get_event_data(){
       //Get the APV mpd and adc_ch. This is needed to calculate the common mode later
       APV_data[imod][axis][iAPV].mpd = (int)mpd[imod][index];
       APV_data[imod][axis][iAPV].adc_id = (int)adc_id[imod][index];
+      APV_data[imod][axis][iAPV].iAPV = iAPV;
     } // end loop on strip data
   } // end loop on modules
 
